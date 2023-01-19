@@ -67,10 +67,49 @@ describe("NextUp", function () {
   describe("Check NextUp ERC20 functionalities", function () {
 
     describe('NXT contract security', () => {
+      it("Should not allow anyone to make changes on NXT contract if admin reference to admin contract is null", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await expect(nxtContract.connect(signer).mint(otherSigners.address, 10)).to.be.revertedWith(
+          "NextUp: Admin contract address is null"
+        );
+      });
+
+      it("Should not allow anyone except admin to set reference to admin contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await expect(nxtContract.connect(otherSigners).setAdminContract(adminContract.address)).to.be.revertedWith(
+          "Ownable: caller is not the owner"
+        );
+      });
+
+      it("Should allow admin to set reference to admin contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await nxtContract.connect(signer).setAdminContract(adminContract.address);
+
+        expect(await nxtContract._adminContract()).to.equal(adminContract.address);
+      });
+
       it("Should allow only admin account and admin contract to make changes on NXT contract", async function () {
-        
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await nxtContract.setAdminContract(adminContract.address);
+
+        await expect(nxtContract.connect(otherSigners).mint(otherSigners.address, 10)).to.be.revertedWith(
+          "NextUp: Caller is not authorized"
+        );
         
       });
+
     });
 
     describe('Buying NXT', () => {
