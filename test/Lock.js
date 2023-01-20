@@ -206,22 +206,21 @@ describe("NextUp", function () {
   describe('Check Athlete ERC20 functionalities', () => {
     
     describe('Check Creating an athlete functionality', () => {
-      // it("Should allow only admin to create an athlete", async function () {
-      //   const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-      //   const athleteContract = await loadFixture(deployAthlete20Contract);
+      it("Should allow only admin to create an athlete", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+        const athleteContract = await loadFixture(deployAthlete20Contract);
         
-      //   const [signer, otherSigners] = await ethers.getSigners();
+        const [signer, otherSigners] = await ethers.getSigners();
 
-      //   const athlete = {price: 10, contractAddress: athleteContract.address, isDisabled:false, maxSupply:100, suppliedAmount:
-      //   0, availableForSale: 0, countMaxSupplyAsAvailableTokens:false};
+        const athlete = {price: 10, contractAddress: athleteContract.address, isDisabled:false, maxSupply:100, suppliedAmount:
+        0, availableForSale: 0, countMaxSupplyAsAvailableTokens:false};
 
-      //   // {timestamp:123,supply:10, price:2}
-      //   const drops = [];
-      //   console.log('asasasa');
-      //   await expect(await adminContract.connect(otherSigners).createAthlete(athlete, [])).to.be.revertedWith(
-      //     "Ownable: caller is not the owner"
-      //   );
-      // }).timeout(30000);
+        // {timestamp:123,supply:10, price:2}
+        const drops = [];
+        await expect(adminContract.connect(otherSigners).createAthlete(athlete, [])).to.be.revertedWith(
+          "Ownable: caller is not the owner"
+        );
+      })//.timeout(30000);
     });
   });
 });

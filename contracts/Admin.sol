@@ -136,7 +136,7 @@ contract Admin is Ownable, Pausable {
     ) public onlyOwner returns (uint256) {
         require(
             isValidAthleteDetails(athleteDetails),
-            "Admin: Inavalid athlete details"
+            "Admin: Invalid athlete details"
         );
 
         _athleteId++;
