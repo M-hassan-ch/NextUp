@@ -66,52 +66,6 @@ describe("NextUp", function () {
 
   describe("Check NextUp ERC20 functionalities", function () {
 
-    describe('NXT contract security', () => {
-      it("Should not allow anyone to make changes on NXT contract if admin reference to admin contract is null", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
-        const [signer, otherSigners] = await ethers.getSigners();
-
-        await expect(nxtContract.connect(signer).mint(otherSigners.address, 10)).to.be.revertedWith(
-          "NextUp: Admin contract address is null"
-        );
-      });
-
-      it("Should not allow anyone except admin to set reference to admin contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
-        const [signer, otherSigners] = await ethers.getSigners();
-
-        await expect(nxtContract.connect(otherSigners).setAdminContract(adminContract.address)).to.be.revertedWith(
-          "Ownable: caller is not the owner"
-        );
-      });
-
-      it("Should allow admin to set reference to admin contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
-        const [signer, otherSigners] = await ethers.getSigners();
-
-        await nxtContract.connect(signer).setAdminContract(adminContract.address);
-
-        expect(await nxtContract._adminContract()).to.equal(adminContract.address);
-      });
-
-      it("Should allow only admin account and admin contract to make changes on NXT contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
-        const [signer, otherSigners] = await ethers.getSigners();
-
-        await nxtContract.setAdminContract(adminContract.address);
-
-        await expect(nxtContract.connect(otherSigners).mint(otherSigners.address, 10)).to.be.revertedWith(
-          "NextUp: Caller is not authorized"
-        );
-        
-      });
-
-    });
-
     describe('Buying NXT', () => {
       it("Should not allow user to buy tokens more than available tokens", async function () {
         const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
@@ -176,81 +130,98 @@ describe("NextUp", function () {
       });
     });
 
+    describe('NXT contract security', () => {
+      it("Should not allow anyone to make changes on NXT contract if reference to admin contract is null", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
-    // it("Should fail if the unlockTime is not in the future", async function () {
-    //   // We don't use the fixture here because we want a different deployment
-    //   const latestTime = await time.latest();
-    //   const Lock = await ethers.getContractFactory("Lock");
-    //   await expect(Lock.deploy(latestTime, { value: 1 })).to.be.revertedWith(
-    //     "Unlock time should be in the future"
-    //   );
-    // });
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await expect(nxtContract.connect(signer).mint(otherSigners.address, 10)).to.be.revertedWith(
+          "NextUp: Admin contract address is null"
+        );
+      });
+
+      it("Should not allow anyone except admin to set reference to admin contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await expect(nxtContract.connect(otherSigners).setAdminContract(adminContract.address)).to.be.revertedWith(
+          "Ownable: caller is not the owner"
+        );
+      });
+
+      it("Should not allow users other than admin to change refererence to NXT contract in admin smart contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        const testaddress = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199';
+
+        await expect(adminContract.connect(otherSigners).setNextUpERC20Contract(testaddress)).to.be.revertedWith(
+          "Ownable: caller is not the owner"
+        );
+        
+      });
+
+      it("Should allow admin to set reference to admin contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await nxtContract.connect(signer).setAdminContract(adminContract.address);
+
+        expect(await nxtContract._adminContract()).to.equal(adminContract.address);
+      });
+
+      it("Should allow only admin account and admin contract to make changes on NXT contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        await nxtContract.setAdminContract(adminContract.address);
+
+        await expect(nxtContract.connect(otherSigners).mint(otherSigners.address, 10)).to.be.revertedWith(
+          "NextUp: Caller is not authorized"
+        );
+        
+      });
+
+      it("Should allow only admin to change refererence to NXT contract in admin smart contract", async function () {
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+
+        const testaddress = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199';
+        await adminContract.setNextUpERC20Contract(testaddress);
+
+        expect(await adminContract._nextUpContract()).to.equal(testaddress);
+        
+      });
+
+    });
+
   });
 
-  // describe("Withdrawals", function () {
-  //   describe("Validations", function () {
-  //     it("Should revert with the right error if called too soon", async function () {
-  //       const { lock } = await loadFixture(deployAthlete20Contract);
+  describe('Check Athlete ERC20 functionalities', () => {
+    
+    describe('Check Creating an athlete functionality', () => {
+      // it("Should allow only admin to create an athlete", async function () {
+      //   const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+      //   const athleteContract = await loadFixture(deployAthlete20Contract);
+        
+      //   const [signer, otherSigners] = await ethers.getSigners();
 
-  //       await expect(lock.withdraw()).to.be.revertedWith(
-  //         "You can't withdraw yet"
-  //       );
-  //     });
+      //   const athlete = {price: 10, contractAddress: athleteContract.address, isDisabled:false, maxSupply:100, suppliedAmount:
+      //   0, availableForSale: 0, countMaxSupplyAsAvailableTokens:false};
 
-  //     it("Should revert with the right error if called from another account", async function () {
-  //       const { lock, unlockTime, otherAccount } = await loadFixture(
-  //         deployAthlete20Contract
-  //       );
-
-  //       // We can increase the time in Hardhat Network
-  //       await time.increaseTo(unlockTime);
-
-  //       // We use lock.connect() to send a transaction from another account
-  //       await expect(lock.connect(otherAccount).withdraw()).to.be.revertedWith(
-  //         "You aren't the owner"
-  //       );
-  //     });
-
-  //     it("Shouldn't fail if the unlockTime has arrived and the owner calls it", async function () {
-  //       const { lock, unlockTime } = await loadFixture(
-  //         deployAthlete20Contract
-  //       );
-
-  //       // Transactions are sent using the first currentSigner by default
-  //       await time.increaseTo(unlockTime);
-
-  //       await expect(lock.withdraw()).not.to.be.reverted;
-  //     });
-  //   });
-
-  //   describe("Events", function () {
-  //     it("Should emit an event on withdrawals", async function () {
-  //       const { lock, unlockTime, lockedAmount } = await loadFixture(
-  //         deployAthlete20Contract
-  //       );
-
-  //       await time.increaseTo(unlockTime);
-
-  //       await expect(lock.withdraw())
-  //         .to.emit(lock, "Withdrawal")
-  //         .withArgs(lockedAmount, anyValue); // We accept any value as `when` arg
-  //     });
-  //   });
-
-  //   describe("Transfers", function () {
-  //     it("Should transfer the funds to the owner", async function () {
-  //       const { lock, unlockTime, lockedAmount, owner } = await loadFixture(
-  //         deployAthlete20Contract
-  //       );
-
-  //       await time.increaseTo(unlockTime);
-
-  //       await expect(lock.withdraw()).to.changeEtherBalances(
-  //         [owner, lock],
-  //         [lockedAmount, -lockedAmount]
-  //       );
-  //     });
-  //   });
-  // });
-
+      //   // {timestamp:123,supply:10, price:2}
+      //   const drops = [];
+      //   console.log('asasasa');
+      //   await expect(await adminContract.connect(otherSigners).createAthlete(athlete, [])).to.be.revertedWith(
+      //     "Ownable: caller is not the owner"
+      //   );
+      // }).timeout(30000);
+    });
+  });
 });

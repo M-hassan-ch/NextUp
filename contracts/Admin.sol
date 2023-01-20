@@ -32,7 +32,7 @@ contract Admin is Ownable, Pausable {
 
     AthleteERC20 _athleteContract;
     Admin _self;
-    NextUp _nextUpContract;
+    NextUp public _nextUpContract;
 
     //  mapping(Athelete => Athlete ERC20 token details)
     mapping(uint256 => AthleteERC20Details) public _athleteERC20Detail;
