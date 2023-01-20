@@ -134,7 +134,6 @@ contract Admin is Ownable, Pausable {
         AthleteERC20Details memory athleteDetails,
         Drop[] memory tokenDrops
     ) public onlyOwner returns (uint256) {
-        require(isValidDrop(tokenDrops), "Admin: Got an invalid token drop");
         require(
             isValidAthleteDetails(athleteDetails),
             "Admin: Inavalid athlete details"
@@ -148,6 +147,10 @@ contract Admin is Ownable, Pausable {
             _athleteERC20Detail[_athleteId]
                 .countMaxSupplyAsAvailableTokens = true;
         } else {
+            require(
+                isValidDrop(_athleteId, tokenDrops),
+                "Admin: Got an invalid token drop"
+            );
             for (uint256 i = 0; i < tokenDrops.length; i++) {
                 _athleteDrops[_athleteId].push(tokenDrops[i]);
             }
@@ -191,7 +194,10 @@ contract Admin is Ownable, Pausable {
         onlyOwner
         isValidAthlete(athleteId)
     {
-        require(isValidDrop(tokenDrops), "Admin: Got an invalid token drop");
+        require(
+            isValidDrop(athleteId, tokenDrops),
+            "Admin: Got an invalid token drop"
+        );
 
         _athleteERC20Detail[_athleteId].countMaxSupplyAsAvailableTokens = false;
 
@@ -306,13 +312,13 @@ contract Admin is Ownable, Pausable {
 
     //   --------------------------- Internal Functions ---------------------------
 
-    function isValidDrop(Drop[] memory drops)
+    function isValidDrop(uint256 athleteId, Drop[] memory drops)
         internal
         view
-        onlyOwner
         returns (bool)
     {
         uint256 currentTime = block.timestamp;
+        uint256 totalSupply = getAthleteTotalSupplyInDrops(athleteId);
 
         for (uint256 i = 0; i < drops.length; i++) {
             if (
@@ -321,10 +327,30 @@ contract Admin is Ownable, Pausable {
                 drops[i].supply <= 0
             ) {
                 return false;
+            } else {
+                totalSupply += drops[i].supply;
             }
         }
 
+        if (
+            totalSupply >
+            (_athleteERC20Detail[athleteId].maxSupply -
+                _athleteERC20Detail[athleteId].suppliedAmount)
+        ) {
+            return false;
+        }
+
         return true;
+    }
+
+    function getAthleteTotalSupplyInDrops(uint256 athleteId) internal view returns(uint) {
+        uint256 totalSupply;
+
+        for (uint256 i = 0; i < _athleteDrops[athleteId].length; i++) {
+            totalSupply += _athleteDrops[athleteId][i].supply;
+        }
+
+        return totalSupply;
     }
 
     function isValidAthleteDetails(AthleteERC20Details memory athleteDetails)
