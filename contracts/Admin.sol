@@ -140,6 +140,7 @@ contract Admin is Ownable, Pausable {
         );
 
         _athleteId++;
+
         _athleteERC20Detail[_athleteId] = athleteDetails;
 
         if (tokenDrops.length == 0) {
@@ -157,6 +158,9 @@ contract Admin is Ownable, Pausable {
             // availableForSale token will set when we run applyDrop() of athlete
         }
 
+        _athleteContract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
+        _athleteContract.approve(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
+
         return _athleteId;
     }
 
@@ -165,7 +169,7 @@ contract Admin is Ownable, Pausable {
         isValidAthlete(athleteId)
         isAthleteNotDisabled(athleteId)
     {
-        require(msg.sender != address(0), "Admin: Caller is null address");
+        require(amountToBuy > 0, "Admin: Amount should be greater than zero");
         require(
             _athleteERC20Detail[athleteId].suppliedAmount <
                 _athleteERC20Detail[athleteId].maxSupply,
@@ -176,17 +180,23 @@ contract Admin is Ownable, Pausable {
             "Admin: Athlete Dont have enough available tokens"
         );
         require(
-            getUserNxtBalance() ==
+            getUserNxtBalance() >=
                 (_athleteERC20Detail[athleteId].price * amountToBuy),
             "Admin: Insufficient NXT Tokens to buy athlete tokens"
         );
         // require(amountToBuy <= (_nxtMaxSupply - _nxtSuppliedAmount), "Admin: Admin dont have enough nextUp tokens");
 
         _athleteERC20Detail[athleteId].suppliedAmount += amountToBuy;
-
+        
         if (!_athleteERC20Detail[athleteId].countMaxSupplyAsAvailableTokens) {
             _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
         }
+
+        _nextUpContract.transferFrom(msg.sender, owner(), (_athleteERC20Detail[athleteId].price * amountToBuy));
+        
+        _athleteContract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
+        _athleteContract.mint(msg.sender, amountToBuy);
+
     }
 
     function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
@@ -215,19 +225,32 @@ contract Admin is Ownable, Pausable {
             _athleteDrops[athleteId].length > 0,
             "Admin: Athlete token don't have drops"
         );
+
         Drop memory drop;
 
         for (uint256 i = 0; i < _athleteDrops[athleteId].length; i++) {
+           
             if (block.timestamp >= _athleteDrops[athleteId][i].timestamp) {
-                _athleteERC20Detail[athleteId]
-                    .availableForSale += _athleteDrops[athleteId][i].supply;
+                
+                _athleteERC20Detail[athleteId].availableForSale += _athleteDrops[athleteId][i].supply;
+                _athleteERC20Detail[athleteId].price = _athleteDrops[athleteId][i].price;
+                
                 drop = _athleteDrops[athleteId][i];
                 deleteTokenDrop(athleteId, i);
+                
                 return (true, drop);
             }
         }
 
         return (false, drop);
+    }
+
+    function updateAthleteERC20MaxSupply(uint athleteId, uint supply) public onlyOwner isValidAthlete(athleteId){
+        require(supply > 0, "Admin: Amount is zero");
+        _athleteERC20Detail[athleteId].maxSupply += supply;
+
+        _athleteContract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
+        _athleteContract.increaseAllowance(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
     }
 
     //  Admin call this function to update the price(In NXT tokens) of Athlete's ERC20 Token
@@ -266,6 +289,11 @@ contract Admin is Ownable, Pausable {
             "Admin: Updated supply should be greater than zero"
         );
         _nxtMaxSupply += updatedSupply;
+    }
+
+    function transferBalance() public onlyOwner {
+        require(address(this).balance > 0, "Conract has zero balance");
+        payable(owner()).transfer(address(this).balance);
     }
 
     function updateNxtTokenPrice(uint256 updatedPrice) public onlyOwner {
@@ -343,7 +371,11 @@ contract Admin is Ownable, Pausable {
         return true;
     }
 
-    function getAthleteTotalSupplyInDrops(uint256 athleteId) internal view returns(uint) {
+    function getAthleteTotalSupplyInDrops(uint256 athleteId)
+        internal
+        view
+        returns (uint256)
+    {
         uint256 totalSupply;
 
         for (uint256 i = 0; i < _athleteDrops[athleteId].length; i++) {

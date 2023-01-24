@@ -161,7 +161,7 @@ describe("NextUp", function () {
         await expect(adminContract.connect(otherSigners).setNextUpERC20Contract(testaddress)).to.be.revertedWith(
           "Ownable: caller is not the owner"
         );
-        
+
       });
 
       it("Should allow admin to set reference to admin contract", async function () {
@@ -184,7 +184,7 @@ describe("NextUp", function () {
         await expect(nxtContract.connect(otherSigners).mint(otherSigners.address, 10)).to.be.revertedWith(
           "NextUp: Caller is not authorized"
         );
-        
+
       });
 
       it("Should allow only admin to change refererence to NXT contract in admin smart contract", async function () {
@@ -196,31 +196,49 @@ describe("NextUp", function () {
         await adminContract.setNextUpERC20Contract(testaddress);
 
         expect(await adminContract._nextUpContract()).to.equal(testaddress);
-        
-      });
 
+      });
     });
 
   });
 
   describe('Check Athlete ERC20 functionalities', () => {
-    
+
     describe('Check Creating an athlete functionality', () => {
       it("Should allow only admin to create an athlete", async function () {
         const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
         const athleteContract = await loadFixture(deployAthlete20Contract);
-        
+
         const [signer, otherSigners] = await ethers.getSigners();
 
-        const athlete = {price: 10, contractAddress: athleteContract.address, isDisabled:false, maxSupply:100, suppliedAmount:
-        0, availableForSale: 0, countMaxSupplyAsAvailableTokens:false};
-
+        const athlete = {
+          price: 10,
+          contractAddress: athleteContract.address,
+          isDisabled: false,
+          maxSupply: 100,
+          suppliedAmount: 0,
+          availableForSale: 0,
+          countMaxSupplyAsAvailableTokens: false
+        };
+        let athlet = [
+          10,
+          athleteContract.address,
+          false,
+          100,
+          0,
+          0,
+          false
+        ]
+        console.log(athleteContract.address);
         // {timestamp:123,supply:10, price:2}
-        const drops = [];
-        await expect(adminContract.connect(otherSigners).createAthlete(athlete, [])).to.be.revertedWith(
+        const drops = [[]];
+
+        // await adminContract.connect(otherSigners).createAthlete(athlete, drops)
+        await expect(adminContract.connect(otherSigners).createAthlete(athlet, drops)).to.be.revertedWith(
           "Ownable: caller is not the owner"
         );
       })//.timeout(30000);
     });
   });
+
 });
