@@ -54,11 +54,11 @@ contract Admin is Ownable, Pausable {
             "Admin: Next-Up contract address is null"
         );
 
-        _self = Admin(address(this));
-        _nextUpContract = NextUp(nextUpERC20Contract);
-
         _nxtMaxSupply = maxSupply;
         _nxtPrice = priceInwei;
+
+        _self = Admin(address(this));
+        _nextUpContract = NextUp(nextUpERC20Contract);
 
         // _pricePerNxtTokenInFiat = priceInFiat;
         // approve(address(this), initialMint);
@@ -110,7 +110,7 @@ contract Admin is Ownable, Pausable {
         );
 
         _nxtSuppliedAmount += amountToBuy;
-        _nextUpContract.mint(msg.sender, amountToBuy);
+        _nextUpContract.mint(msg.sender, amountToBuy, address(this));
         // approve(address(this), amountToBuy);
     }
 
@@ -159,7 +159,6 @@ contract Admin is Ownable, Pausable {
         }
 
         _athleteContract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
-        _athleteContract.approve(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
 
         return _athleteId;
     }
@@ -192,10 +191,10 @@ contract Admin is Ownable, Pausable {
             _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
         }
 
-        _nextUpContract.transferFrom(msg.sender, owner(), (_athleteERC20Detail[athleteId].price * amountToBuy));
+        _nextUpContract.transferFrom(msg.sender, owner(), amountToBuy);
         
         _athleteContract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
-        _athleteContract.mint(msg.sender, amountToBuy);
+        _athleteContract.mint(msg.sender, amountToBuy, address(this));
 
     }
 
@@ -410,4 +409,5 @@ contract Admin is Ownable, Pausable {
         ];
         _athleteDrops[athleteId].pop();
     }
+
 }

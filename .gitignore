@@ -9,6 +9,6 @@ typechain-types
 cache
 artifacts
 .deps
-
+.env
 /contract/artifacts
 

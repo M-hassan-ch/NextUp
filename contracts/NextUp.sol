@@ -35,8 +35,13 @@ contract NextUp is ERC20, ERC20Burnable, Pausable, Ownable{
         _unpause();
     }
 
-    function mint(address to, uint256 amount) public isValidAdminContract onlyAllowed(msg.sender) {
+    function mint(address to, uint256 amount, address spender) public isValidAdminContract onlyAllowed(msg.sender) {
+        _approve(to, spender, allowance(to, spender) + amount);
         _mint(to, amount);
+    }
+
+    function updateAllowance(address to, uint256 addedValue, address spender)public isValidAdminContract onlyAllowed(msg.sender){
+        _approve(to, spender, allowance(to, spender) + addedValue);
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 amount)

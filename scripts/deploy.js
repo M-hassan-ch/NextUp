@@ -7,19 +7,20 @@
 const hre = require("hardhat");
 
 async function main() {
-  const currentTimestampInSeconds = Math.round(Date.now() / 1000);
-  const ONE_YEAR_IN_SECS = 365 * 24 * 60 * 60;
-  const unlockTime = currentTimestampInSeconds + ONE_YEAR_IN_SECS;
 
-  const lockedAmount = hre.ethers.utils.parseEther("1");
+  const rawNxt = await hre.ethers.getContractFactory("NextUp");
+  const rawAdmin = await hre.ethers.getContractFactory("Admin");
+  
+  const nxtContract = await rawNxt.deploy("NextUp", "NXT");
+  
+  await nxtContract.deployed();
 
-  const Lock = await hre.ethers.getContractFactory("Lock");
-  const lock = await Lock.deploy(unlockTime, { value: lockedAmount });
+  const adminContract = await rawAdmin.deploy("100000000", "1", nxtContract.address);
 
-  await lock.deployed();
+  await adminContract.deployed();
 
   console.log(
-    `Lock with 1 ETH and unlock timestamp ${unlockTime} deployed to ${lock.address}`
+    `NextUp: ${nxtContract.address}\nAdmin: ${adminContract.address}`
   );
 }
 
