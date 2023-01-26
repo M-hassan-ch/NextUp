@@ -2,8 +2,10 @@
 pragma solidity ^0.8.15;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "./AthleteERC20.sol";
 import "./NextUp.sol";
+import "./AthleteERC721.sol";
 
 contract Admin is Ownable, Pausable {
     // -------------------------- Managing Athlete --------------------------
@@ -30,27 +32,37 @@ contract Admin is Ownable, Pausable {
 
     uint256 _athleteId;
 
-    AthleteERC20 _athleteContract;
-    Admin _self;
+    AthleteERC20 public  _athleteERC20Contract;
+    Admin public _self;
     NextUp public _nextUpContract;
+    AthleteERC721 public _athleteERC721Contract;
 
     //  mapping(Athelete => Athlete ERC20 token details)
     mapping(uint256 => AthleteERC20Details) public _athleteERC20Detail;
     //  mapping(Athelete => Athlete token drops)
     mapping(uint256 => Drop[]) public _athleteDrops;
+    
+    // mapping(tokenId => price)
+    mapping(uint => uint) _athleteNftPrice;  // Athlete nft price in Athlete token
+    // mapping(tokenOwner => tokenIds[])
+    using EnumerableSet for EnumerableSet.UintSet;
+    mapping(address => EnumerableSet.UintSet) _userBoughtAthNfts;
 
     constructor(
         uint256 maxSupply,
         uint256 priceInwei,
-        address nextUpERC20Contract
+        address nextUpERC20Address,
+        address athleteERC721Address
     ) {
+        require(nextUpERC20Address != address(0), "Admin: NXT contract address is null");
+        require(athleteERC721Address != address(0), "Admin: AthleteERC721 contract address is null");
         require(maxSupply > 0, "Admin: Max supply should be greater than zero");
         require(
             priceInwei > 0,
             "Admin: Price of token should be greater than zero"
         );
         require(
-            nextUpERC20Contract != address(0),
+            nextUpERC20Address != address(0),
             "Admin: Next-Up contract address is null"
         );
 
@@ -58,7 +70,8 @@ contract Admin is Ownable, Pausable {
         _nxtPrice = priceInwei;
 
         _self = Admin(address(this));
-        _nextUpContract = NextUp(nextUpERC20Contract);
+        _nextUpContract = NextUp(nextUpERC20Address);
+        _athleteERC721Contract = AthleteERC721(athleteERC721Address);
 
         // _pricePerNxtTokenInFiat = priceInFiat;
         // approve(address(this), initialMint);
@@ -80,15 +93,15 @@ contract Admin is Ownable, Pausable {
         _;
     }
 
-    function setNextUpERC20Contract(address nextUpERC20Contract)
+    function setNextUpERC20Contract(address nextUpERC20Address)
         public
         onlyOwner
     {
         require(
-            nextUpERC20Contract != address(0),
+            nextUpERC20Address != address(0),
             "Admin: Next-Up contract address is null"
         );
-        _nextUpContract = NextUp(nextUpERC20Contract);
+        _nextUpContract = NextUp(nextUpERC20Address);
     }
 
     // -------------------------- User related functions --------------------------
@@ -114,16 +127,23 @@ contract Admin is Ownable, Pausable {
         // approve(address(this), amountToBuy);
     }
 
-    //  In case, if customer is buying NextUp tokens with USD (Fiat money)
-    // function buyTokenInFiat(uint amountToBuy, address addressTo) public onlyOwner
-    // {
-    //     require(amountToBuy <= balanceOf(owner()), "Admin: Insufficient owner's balance");
-    //     transferFrom(owner(), addressTo, amountToBuy);
-    //     // approve(address(this), amountToBuy);
-    // }
+    //  In case, if customer is buying NextUp tokens in FIAT
+    function buyNxtTokenInWei(address receiver,uint256 amount) public onlyOwner {
+        require(receiver != address(0), "Admin: Receiver is null address");
+        require(
+            _nxtSuppliedAmount < _nxtMaxSupply,
+            "Admin: Max supply limit reached"
+        );
+        require(
+            amount <= (_nxtMaxSupply - _nxtSuppliedAmount),
+            "Admin: Dont have enough tokens"
+        );
 
-    //     require(amountToBuy <= balanceOf(owner()), "Admin: Insufficient owner's balance");
-    //     transferFrom(owner()
+        _nxtSuppliedAmount += amount;
+        _nextUpContract.mint(receiver, amount, address(this));
+        // approve(address(this), amountToBuy);
+    }
+
     // -------------------------- Athlete related functions --------------------------
 
     //  Delete an athlete profile is missing
@@ -158,9 +178,24 @@ contract Admin is Ownable, Pausable {
             // availableForSale token will set when we run applyDrop() of athlete
         }
 
-        _athleteContract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
+        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
 
         return _athleteId;
+    }
+
+    function createAthleteNft(address to, string memory uri, uint price) public onlyOwner returns(uint){
+        require(to != address(0), "Admin: Receiver address is null");
+
+        uint tokenId = _athleteERC721Contract.safeMint(to, uri);
+
+        _athleteNftPrice[tokenId] = price;
+        _userBoughtAthNfts[to].add(tokenId);
+
+        return tokenId;
+    }
+
+    function buyAthleteNft(uint tokenId, uint athleteId) public isValidAthlete(athleteId) isAthleteNotDisabled(athleteId){
+        
     }
 
     function buyAthleteTokens(uint256 athleteId, uint256 amountToBuy)
@@ -193,8 +228,8 @@ contract Admin is Ownable, Pausable {
 
         _nextUpContract.transferFrom(msg.sender, owner(), amountToBuy);
         
-        _athleteContract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
-        _athleteContract.mint(msg.sender, amountToBuy, address(this));
+        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
+        _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
 
     }
 
@@ -248,8 +283,8 @@ contract Admin is Ownable, Pausable {
         require(supply > 0, "Admin: Amount is zero");
         _athleteERC20Detail[athleteId].maxSupply += supply;
 
-        _athleteContract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
-        _athleteContract.increaseAllowance(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
+        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
+        _athleteERC20Contract.increaseAllowance(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
     }
 
     //  Admin call this function to update the price(In NXT tokens) of Athlete's ERC20 Token
