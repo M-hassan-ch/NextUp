@@ -47,6 +47,8 @@ contract Admin is Ownable, Pausable {
     // mapping(tokenOwner => tokenIds[])
     using EnumerableSet for EnumerableSet.UintSet;
     mapping(address => EnumerableSet.UintSet) _userBoughtAthNfts;
+    // mapping(athleteId => athleteNfts[])
+    mapping(uint=> EnumerableSet.UintSet) _athleteNfts;
 
     constructor(
         uint256 maxSupply,
@@ -81,6 +83,14 @@ contract Admin is Ownable, Pausable {
         require(
             _athleteERC20Detail[athleteId].contractAddress != address(0),
             "Admin: Athlete account not found"
+        );
+        _;
+    }
+
+    modifier isNftExists(uint tokenId){
+        require(
+            _athleteNftPrice[tokenId] > 0,
+            "Admin: NFT dont exists"
         );
         _;
     }
@@ -178,25 +188,44 @@ contract Admin is Ownable, Pausable {
             // availableForSale token will set when we run applyDrop() of athlete
         }
 
-        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
-
         return _athleteId;
     }
 
-    function createAthleteNft(address to, string memory uri, uint price) public onlyOwner returns(uint){
+    function createAthleteNft(address to, uint athleteId, string memory uri, uint price) public  isValidAthlete(athleteId) isAthleteNotDisabled(athleteId) onlyOwner returns(uint){
         require(to != address(0), "Admin: Receiver address is null");
+        require(price > 0, "Admin: price of NFT is 0");
 
         uint tokenId = _athleteERC721Contract.safeMint(to, uri);
 
         _athleteNftPrice[tokenId] = price;
         _userBoughtAthNfts[to].add(tokenId);
+        _athleteNfts[athleteId].add(tokenId);
+        
+
+        // its imp to handle the state  when some one sale nft on opensea
+        // Solution: verify current nfts ownerships and  update states 
 
         return tokenId;
     }
 
-    function buyAthleteNft(uint tokenId, uint athleteId) public isValidAthlete(athleteId) isAthleteNotDisabled(athleteId){
+    function buyAthleteNft(uint athleteId, uint tokenId) public isValidAthlete(athleteId) isAthleteNotDisabled(athleteId) isNftExists(tokenId){
+        require(msg.sender != address(0), "Admin: Caller is null address");
         
+        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
+        
+        require(
+            _athleteERC20Contract.balanceOf(msg.sender) >= _athleteNftPrice[tokenId],
+            "Admin: Insufficient athlete tokens"
+        );
+
+        _athleteERC20Contract.transferFrom(msg.sender, owner(), _athleteNftPrice[tokenId]);
+        _athleteERC721Contract.transferFrom(owner(), msg.sender, tokenId);
     }
+
+    // function getOwnedAthleteTokens(uint athleteId, address user) internal returns(uint){
+    //     _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
+    //     return _athleteERC20Contract.balanceOf(user);
+    // }
 
     function buyAthleteTokens(uint256 athleteId, uint256 amountToBuy)
         public
