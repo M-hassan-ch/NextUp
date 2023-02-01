@@ -103,17 +103,6 @@ contract Admin is Ownable, Pausable {
         _;
     }
 
-    function setNextUpERC20Contract(address nextUpERC20Address)
-        public
-        onlyOwner
-    {
-        require(
-            nextUpERC20Address != address(0),
-            "Admin: Next-Up contract address is null"
-        );
-        _nextUpContract = NextUp(nextUpERC20Address);
-    }
-
     // -------------------------- User related functions --------------------------
 
     //  In case, if customer is buying NextUp tokens in WEI
@@ -138,7 +127,7 @@ contract Admin is Ownable, Pausable {
     }
 
     //  In case, if customer is buying NextUp tokens in FIAT
-    function buyNxtTokenInWei(address receiver,uint256 amount) public onlyOwner {
+    function buyNxtTokenInFiat(address receiver,uint256 amount) public onlyOwner {
         require(receiver != address(0), "Admin: Receiver is null address");
         require(
             _nxtSuppliedAmount < _nxtMaxSupply,
@@ -203,7 +192,7 @@ contract Admin is Ownable, Pausable {
         
 
         // its imp to handle the state  when some one sale nft on opensea
-        // Solution: verify current nfts ownerships and  update states 
+        // Solution: verify current nfts ownerships and  update states accordingly
 
         return tokenId;
     }
@@ -255,7 +244,7 @@ contract Admin is Ownable, Pausable {
             _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
         }
 
-        _nextUpContract.transferFrom(msg.sender, owner(), amountToBuy);
+        _nextUpContract.transferFrom(msg.sender, owner(), (_athleteERC20Detail[athleteId].price * amountToBuy));
         
         _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
         _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
@@ -338,6 +327,17 @@ contract Admin is Ownable, Pausable {
         _athleteERC20Detail[athleteId].maxSupply += addSupply;
     }
 
+    function setNextUpERC20Contract(address nextUpERC20Address)
+    public
+    onlyOwner
+    {
+        require(
+            nextUpERC20Address != address(0),
+            "Admin: Next-Up contract address is null"
+        );
+        _nextUpContract = NextUp(nextUpERC20Address);
+    }
+
     function updateAthleteStatus(bool status, uint256 athleteId)
         public
         onlyOwner
@@ -353,6 +353,7 @@ contract Admin is Ownable, Pausable {
         );
         _nxtMaxSupply += updatedSupply;
     }
+
 
     function transferBalance() public onlyOwner {
         require(address(this).balance > 0, "Conract has zero balance");

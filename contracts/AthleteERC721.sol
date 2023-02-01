@@ -18,17 +18,17 @@ contract AthleteERC721 is ERC721, ERC721URIStorage, Pausable, Ownable, ERC721Bur
     constructor(string memory tokenName, string memory symbol) ERC721(tokenName, symbol) {}
 
     modifier onlyAllowed(address caller){
-        require(caller == _adminContract || caller == owner(), "NextUp: Caller is not authorized");
+        require(caller == _adminContract || caller == owner(), "AthleteERC721: Caller is not authorized");
         _;
     }
 
     modifier isValidAdminContract(){
-        require(_adminContract != address(0), "NextUp: Admin contract address is null");
+        require(_adminContract != address(0), "AthleteERC721: Admin contract address is null");
         _;
     }
 
     function setAdminContract(address adminContract) public onlyOwner{
-        require(adminContract != address(0), "NextUp: Admin contract's address argument is null");
+        require(adminContract != address(0), "AthleteERC721: Admin contract's address argument is null");
         _adminContract = adminContract;
     }
 
