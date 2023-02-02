@@ -8,19 +8,14 @@ const hre = require("hardhat");
 
 async function main() {
 
-  const rawNxt = await hre.ethers.getContractFactory("NextUp");
-  const rawAdmin = await hre.ethers.getContractFactory("Admin");
-  
-  const nxtContract = await rawNxt.deploy("NextUp", "NXT");
-  
-  await nxtContract.deployed();
+  const raw = await hre.ethers.getContractFactory("AthleteERC20");
 
-  const adminContract = await rawAdmin.deploy("100000000", "1", nxtContract.address);
+  const contract = await raw.deploy("asasa", "asa");
 
-  await adminContract.deployed();
+  await contract.deployed();
 
   console.log(
-    `NextUp: ${nxtContract.address}\nAdmin: ${adminContract.address}`
+    `${contract.address}}`
   );
 }
 

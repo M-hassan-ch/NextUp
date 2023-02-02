@@ -32,7 +32,7 @@ contract Admin is Ownable, Pausable {
 
     uint256 _athleteId;
 
-    AthleteERC20 public  _athleteERC20Contract;
+    AthleteERC20 public _athleteERC20Contract;
     Admin public _self;
     NextUp public _nextUpContract;
     AthleteERC721 public _athleteERC721Contract;
@@ -41,14 +41,14 @@ contract Admin is Ownable, Pausable {
     mapping(uint256 => AthleteERC20Details) public _athleteERC20Detail;
     //  mapping(Athelete => Athlete token drops)
     mapping(uint256 => Drop[]) public _athleteDrops;
-    
+
     // mapping(tokenId => price)
-    mapping(uint => uint) _athleteNftPrice;  // Athlete nft price in Athlete token
+    mapping(uint256 => uint256) _athleteNftPrice; // Athlete nft price in Athlete token
     // mapping(tokenOwner => tokenIds[])
     using EnumerableSet for EnumerableSet.UintSet;
     mapping(address => EnumerableSet.UintSet) _userBoughtAthNfts;
     // mapping(athleteId => athleteNfts[])
-    mapping(uint=> EnumerableSet.UintSet) _athleteNfts;
+    mapping(uint256 => EnumerableSet.UintSet) _athleteNfts;
 
     constructor(
         uint256 maxSupply,
@@ -56,8 +56,14 @@ contract Admin is Ownable, Pausable {
         address nextUpERC20Address,
         address athleteERC721Address
     ) {
-        require(nextUpERC20Address != address(0), "Admin: NXT contract address is null");
-        require(athleteERC721Address != address(0), "Admin: AthleteERC721 contract address is null");
+        require(
+            nextUpERC20Address != address(0),
+            "Admin: NXT contract address is null"
+        );
+        require(
+            athleteERC721Address != address(0),
+            "Admin: AthleteERC721 contract address is null"
+        );
         require(maxSupply > 0, "Admin: Max supply should be greater than zero");
         require(
             priceInwei > 0,
@@ -87,11 +93,8 @@ contract Admin is Ownable, Pausable {
         _;
     }
 
-    modifier isNftExists(uint tokenId){
-        require(
-            _athleteNftPrice[tokenId] > 0,
-            "Admin: NFT dont exists"
-        );
+    modifier isNftExists(uint256 tokenId) {
+        require(_athleteNftPrice[tokenId] > 0, "Admin: NFT dont exists");
         _;
     }
 
@@ -127,7 +130,10 @@ contract Admin is Ownable, Pausable {
     }
 
     //  In case, if customer is buying NextUp tokens in FIAT
-    function buyNxtTokenInFiat(address receiver,uint256 amount) public onlyOwner {
+    function buyNxtTokenInFiat(address receiver, uint256 amount)
+        public
+        onlyOwner
+    {
         require(receiver != address(0), "Admin: Receiver is null address");
         require(
             _nxtSuppliedAmount < _nxtMaxSupply,
@@ -149,7 +155,7 @@ contract Admin is Ownable, Pausable {
     //  Before calling this function admin has already deployed AthleteERC20 contract
     //  ERC20 token name and symbol already had given during the deployement
     //  Creating an athlete with drops(sorted array). This function returns id of created athlete
-    function createAthlete(
+    function createAthleteToken(
         AthleteERC20Details memory athleteDetails,
         Drop[] memory tokenDrops
     ) public onlyOwner returns (uint256) {
@@ -180,34 +186,56 @@ contract Admin is Ownable, Pausable {
         return _athleteId;
     }
 
-    function createAthleteNft(address to, uint athleteId, string memory uri, uint price) public  isValidAthlete(athleteId) isAthleteNotDisabled(athleteId) onlyOwner returns(uint){
+    function createAthleteNft(
+        address to,
+        uint256 athleteId,
+        string memory uri,
+        uint256 price
+    )
+        public
+        isValidAthlete(athleteId)
+        isAthleteNotDisabled(athleteId)
+        onlyOwner
+        returns (uint256)
+    {
         require(to != address(0), "Admin: Receiver address is null");
         require(price > 0, "Admin: price of NFT is 0");
 
-        uint tokenId = _athleteERC721Contract.safeMint(to, uri);
+        uint256 tokenId = _athleteERC721Contract.safeMint(to, uri);
 
         _athleteNftPrice[tokenId] = price;
         _userBoughtAthNfts[to].add(tokenId);
         _athleteNfts[athleteId].add(tokenId);
-        
 
-        // its imp to handle the state  when some one sale nft on opensea
-        // Solution: verify current nfts ownerships and  update states accordingly
+        // its imp to handle the state  when someone sale nft on opensea
+        // Solution: verify current nfts ownerships and update states accordingly
 
         return tokenId;
     }
 
-    function buyAthleteNft(uint athleteId, uint tokenId) public isValidAthlete(athleteId) isAthleteNotDisabled(athleteId) isNftExists(tokenId){
+    function buyAthleteNft(uint256 athleteId, uint256 tokenId)
+        public
+        isValidAthlete(athleteId)
+        isAthleteNotDisabled(athleteId)
+        isNftExists(tokenId)
+    {
         require(msg.sender != address(0), "Admin: Caller is null address");
-        
-        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
-        
+
+        _athleteERC20Contract = AthleteERC20(
+            _athleteERC20Detail[athleteId].contractAddress
+        );
+
         require(
-            _athleteERC20Contract.balanceOf(msg.sender) >= _athleteNftPrice[tokenId],
+            _athleteERC20Contract.balanceOf(msg.sender) >=
+                _athleteNftPrice[tokenId],
             "Admin: Insufficient athlete tokens"
         );
 
-        _athleteERC20Contract.transferFrom(msg.sender, owner(), _athleteNftPrice[tokenId]);
+        _athleteERC20Contract.transferFrom(
+            msg.sender,
+            owner(),
+            _athleteNftPrice[tokenId]
+        );
         _athleteERC721Contract.transferFrom(owner(), msg.sender, tokenId);
     }
 
@@ -239,16 +267,21 @@ contract Admin is Ownable, Pausable {
         // require(amountToBuy <= (_nxtMaxSupply - _nxtSuppliedAmount), "Admin: Admin dont have enough nextUp tokens");
 
         _athleteERC20Detail[athleteId].suppliedAmount += amountToBuy;
-        
+
         if (!_athleteERC20Detail[athleteId].countMaxSupplyAsAvailableTokens) {
             _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
         }
 
-        _nextUpContract.transferFrom(msg.sender, owner(), (_athleteERC20Detail[athleteId].price * amountToBuy));
-        
-        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
-        _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
+        _nextUpContract.transferFrom(
+            msg.sender,
+            owner(),
+            (_athleteERC20Detail[athleteId].price * amountToBuy)
+        );
 
+        _athleteERC20Contract = AthleteERC20(
+            _athleteERC20Detail[athleteId].contractAddress
+        );
+        _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
     }
 
     function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
@@ -261,10 +294,13 @@ contract Admin is Ownable, Pausable {
             "Admin: Got an invalid token drop"
         );
 
-        _athleteERC20Detail[_athleteId].countMaxSupplyAsAvailableTokens = false;
+        if (_athleteERC20Detail[athleteId].countMaxSupplyAsAvailableTokens) {
+            _athleteERC20Detail[athleteId]
+                .countMaxSupplyAsAvailableTokens = false;
+        }
 
         for (uint256 i = 0; i < tokenDrops.length; i++) {
-            _athleteDrops[_athleteId].push(tokenDrops[i]);
+            _athleteDrops[athleteId].push(tokenDrops[i]);
         }
     }
 
@@ -281,15 +317,14 @@ contract Admin is Ownable, Pausable {
         Drop memory drop;
 
         for (uint256 i = 0; i < _athleteDrops[athleteId].length; i++) {
-           
             if (block.timestamp >= _athleteDrops[athleteId][i].timestamp) {
-                
+
                 _athleteERC20Detail[athleteId].availableForSale += _athleteDrops[athleteId][i].supply;
                 _athleteERC20Detail[athleteId].price = _athleteDrops[athleteId][i].price;
-                
+
                 drop = _athleteDrops[athleteId][i];
                 deleteTokenDrop(athleteId, i);
-                
+
                 return (true, drop);
             }
         }
@@ -297,12 +332,13 @@ contract Admin is Ownable, Pausable {
         return (false, drop);
     }
 
-    function updateAthleteERC20MaxSupply(uint athleteId, uint supply) public onlyOwner isValidAthlete(athleteId){
+    function updateAthleteERC20MaxSupply(uint256 athleteId, uint256 supply)
+        public
+        onlyOwner
+        isValidAthlete(athleteId)
+    {
         require(supply > 0, "Admin: Amount is zero");
         _athleteERC20Detail[athleteId].maxSupply += supply;
-
-        _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[_athleteId].contractAddress);
-        _athleteERC20Contract.increaseAllowance(address(this),  _athleteERC20Detail[_athleteId].maxSupply);
     }
 
     //  Admin call this function to update the price(In NXT tokens) of Athlete's ERC20 Token
@@ -328,8 +364,8 @@ contract Admin is Ownable, Pausable {
     }
 
     function setNextUpERC20Contract(address nextUpERC20Address)
-    public
-    onlyOwner
+        public
+        onlyOwner
     {
         require(
             nextUpERC20Address != address(0),
@@ -353,7 +389,6 @@ contract Admin is Ownable, Pausable {
         );
         _nxtMaxSupply += updatedSupply;
     }
-
 
     function transferBalance() public onlyOwner {
         require(address(this).balance > 0, "Conract has zero balance");
@@ -410,7 +445,7 @@ contract Admin is Ownable, Pausable {
         returns (bool)
     {
         uint256 currentTime = block.timestamp;
-        uint256 totalSupply = getAthleteTotalSupplyInDrops(athleteId);
+        uint256 totalDropSupply = getAthleteTotalSupplyInDrops(athleteId);
 
         for (uint256 i = 0; i < drops.length; i++) {
             if (
@@ -420,14 +455,15 @@ contract Admin is Ownable, Pausable {
             ) {
                 return false;
             } else {
-                totalSupply += drops[i].supply;
+                totalDropSupply += drops[i].supply;
             }
         }
 
         if (
-            totalSupply >
-            (_athleteERC20Detail[athleteId].maxSupply -
-                _athleteERC20Detail[athleteId].suppliedAmount)
+            (totalDropSupply +
+                _athleteERC20Detail[athleteId].suppliedAmount +
+                _athleteERC20Detail[athleteId].availableForSale) >
+            _athleteERC20Detail[athleteId].maxSupply
         ) {
             return false;
         }
@@ -474,5 +510,4 @@ contract Admin is Ownable, Pausable {
         ];
         _athleteDrops[athleteId].pop();
     }
-
 }
