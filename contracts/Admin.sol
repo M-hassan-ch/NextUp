@@ -25,6 +25,10 @@ contract Admin is Ownable, Pausable {
         bool countMaxSupplyAsAvailableTokens;
     }
 
+    event AthleteTokenCreated(address indexed athleteERC20Addr, uint athleteId);
+    event AthleteRewardCreated(uint indexed tokenId, uint athleteId);
+    event DropApplied(uint indexed athleteId, Drop appliedDrop);
+
     uint256 public _nxtMaxSupply;
     uint256 public _nxtSuppliedAmount;
     // uint public _pricePerNxtTokenInFiat;
@@ -158,7 +162,7 @@ contract Admin is Ownable, Pausable {
     function createAthleteToken(
         AthleteERC20Details memory athleteDetails,
         Drop[] memory tokenDrops
-    ) public onlyOwner returns (uint256) {
+    ) public onlyOwner {
         require(
             isValidAthleteDetails(athleteDetails),
             "Admin: Invalid athlete details"
@@ -183,10 +187,10 @@ contract Admin is Ownable, Pausable {
             // availableForSale token will set when we run applyDrop() of athlete
         }
 
-        return _athleteId;
+        emit AthleteTokenCreated(_athleteERC20Detail[_athleteId].contractAddress, _athleteId);
     }
 
-    function createAthleteNft(
+    function createAthleteReward(
         address to,
         uint256 athleteId,
         string memory uri,
@@ -196,7 +200,6 @@ contract Admin is Ownable, Pausable {
         isValidAthlete(athleteId)
         isAthleteNotDisabled(athleteId)
         onlyOwner
-        returns (uint256)
     {
         require(to != address(0), "Admin: Receiver address is null");
         require(price > 0, "Admin: price of NFT is 0");
@@ -210,10 +213,10 @@ contract Admin is Ownable, Pausable {
         // its imp to handle the state  when someone sale nft on opensea
         // Solution: verify current nfts ownerships and update states accordingly
 
-        return tokenId;
+        emit AthleteRewardCreated(tokenId, athleteId);
     }
 
-    function buyAthleteNft(uint256 athleteId, uint256 tokenId)
+    function buyAthleteReward(uint256 athleteId, uint256 tokenId)
         public
         isValidAthlete(athleteId)
         isAthleteNotDisabled(athleteId)
@@ -307,7 +310,6 @@ contract Admin is Ownable, Pausable {
     function applyAthleteDrop(uint256 athleteId)
         public
         isValidAthlete(athleteId)
-        returns (bool, Drop memory)
     {
         require(
             _athleteDrops[athleteId].length > 0,
@@ -325,11 +327,11 @@ contract Admin is Ownable, Pausable {
                 drop = _athleteDrops[athleteId][i];
                 deleteTokenDrop(athleteId, i);
 
-                return (true, drop);
+                emit DropApplied(athleteId, drop);
             }
         }
 
-        return (false, drop);
+        emit DropApplied(0, drop);
     }
 
     function updateAthleteERC20MaxSupply(uint256 athleteId, uint256 supply)
