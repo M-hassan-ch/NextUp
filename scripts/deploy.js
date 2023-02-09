@@ -6,7 +6,7 @@
 // global scope, and execute the script.
 const hre = require("hardhat");
 
-async function main() {
+async functio```````n main() {
 
   const raw = await hre.ethers.getContractFactory("AthleteERC20");
 

@@ -8,7 +8,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract AthleteERC20 is ERC20, ERC20Burnable, Pausable, Ownable{
 
-    address _adminContract;
+    address public _adminContract;
 
     constructor(string memory tokenName, string memory symbol) ERC20(tokenName, symbol) {    
 
