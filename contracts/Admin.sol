@@ -334,13 +334,13 @@ contract Admin is Ownable, Pausable {
         emit DropApplied(0, drop);
     }
 
-    function updateAthleteERC20MaxSupply(uint256 athleteId, uint256 supply)
+    function updateAthleteERC20MaxSupply(uint256 athleteId, uint256 addSupply)
         public
         onlyOwner
         isValidAthlete(athleteId)
     {
-        require(supply > 0, "Admin: Amount is zero");
-        _athleteERC20Detail[athleteId].maxSupply += supply;
+        require(addSupply > 0, "Admin: Amount is zero");
+        _athleteERC20Detail[athleteId].maxSupply += addSupply;
     }
 
     //  Admin call this function to update the price(In NXT tokens) of Athlete's ERC20 Token
@@ -350,19 +350,6 @@ contract Admin is Ownable, Pausable {
         isValidAthlete(athleteId)
     {
         _athleteERC20Detail[athleteId].price = price;
-    }
-
-    //  Admin call this function to increase the max supply of Athlete's ERC20 Token
-    function increaseAthleteTokenMaxSupply(uint256 athleteId, uint256 addSupply)
-        public
-        onlyOwner
-        isValidAthlete(athleteId)
-    {
-        require(
-            addSupply > 0,
-            "Admin: Amount of supply you wanted to increase should be greater than zero"
-        );
-        _athleteERC20Detail[athleteId].maxSupply += addSupply;
     }
 
     function setNextUpERC20Contract(address nextUpERC20Address)
