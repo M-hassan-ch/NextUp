@@ -24,11 +24,19 @@ describe("NextUp", function () {
     return contract;
   }
 
+  async function deployAthlete721Contract() {
+    const raw = await ethers.getContractFactory("AthleteERC721");
+    const contract = await raw.deploy("Athlete2", "ath2");
+
+    return contract;
+  }
+
   async function deployAdminContract() {
     const nxtContract = await loadFixture(deployNextUpContract);
+    const athleteERC721 = await loadFixture(deployAthlete721Contract);
 
     const raw = await ethers.getContractFactory("Admin");
-    const adminContract = await raw.deploy(10, 1, nxtContract.address);
+    const adminContract = await raw.deploy(10, 1, nxtContract.address, athleteERC721.address);
 
     return { adminContract, nxtContract };
   }
@@ -135,7 +143,8 @@ describe("NextUp", function () {
         const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
         const [signer, otherSigners] = await ethers.getSigners();
-
+        const owner = await adminContract.owner();
+        console.log(owner);
         await expect(nxtContract.connect(signer).mint(otherSigners.address, 10, adminContract.address)).to.be.revertedWith(
           "NextUp: Admin contract address is null"
         );
@@ -202,32 +211,62 @@ describe("NextUp", function () {
 
   });
 
-  describe('Check Athlete ERC20 functionalities', function()  {
+  describe('Check Athlete ERC20 functionalities', function () {
 
     describe('Check Creating an athlete functionality', () => {
       it("Should allow only admin to create an athlete", async function () {
-        
+
+        // const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+        // const athleteContract = await loadFixture(deployAthlete20Contract);
+
+        const [signer, otherSigners] = await ethers.getSigners();
+        let AthleteERC20Details = {
+          price: 2,
+          contractAddress: signer.address,
+          isDisabled: false,
+          maxSupply: 10,
+          suppliedAmount: 0,
+          availableForSale: 0,
+          countMaxSupplyAsAvailableTokens: false,
+        }
+        // const owner = await adminContract._nxtPrice();
         const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-        const athleteContract = await loadFixture(deployAthlete20Contract);
-       
-        const [signer, otherSigners] = await ethers.getSigners();       
-        const athlete = [
-          10,
-          athleteContract.address,
-          false,
-          100,
-          0,
-          0,
-          false
-        ];
+
+        // const [signer, otherSigners] = await ethers.getSigners();
+        const owner = await adminContract.owner();
+        
+        console.log(owner, signer.address)
         // {timestamp:123,supply:10, price:2}
         const drops = [];
+        // console.log("asdadasas");
+        
+        const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops)
+        const result = await tx.wait();
+        
+        if (result){
+          console.log(result.events[0].args);
+        }
+        // for (const event of result.events) {
+        //   console.log(`Event ${event.event} with args ${event.args}`);
+        // }
 
-        const result = await adminContract.connect(signer).createAthlete(athlete, drops)
-        console.log(result);
-      //  await expect(adminContract.connect(otherSigners).createAthlete(athlete, drops)).to.be.revertedWith(
-      //     "Ownable: caller is not the owner"
-      //   );
+        // for (const event of result.events) {
+        //   console.log(`Event ${event.event} with args ${event.args}`);
+        // }
+
+        // await expect(adminContract.createAthleteReward(signer.address, 0, '123',10)).to.be.revertedWith(
+        //   "Admin: Athlete account not found"
+        // );
+
+        // await expect(tx)
+        // .to.emit(adminContract, 'AthleteTokenCreated')
+        // .withArgs(signer.address, 1);
+        
+        // const result = await expect(adminContract.createAthleteToken(AthleteERC20Details, drops))
+        // .to.emit(adminContract, 'AthleteTokenCreated')
+        // .withArgs(signer.address, 1);
+        // await result.wait();
+        // console.log(result);
 
       })
     });
