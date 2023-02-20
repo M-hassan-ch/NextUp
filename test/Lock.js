@@ -144,7 +144,7 @@ describe("NextUp", function () {
 
         const [signer, otherSigners] = await ethers.getSigners();
         const owner = await adminContract.owner();
-        console.log(owner);
+
         await expect(nxtContract.connect(signer).mint(otherSigners.address, 10, adminContract.address)).to.be.revertedWith(
           "NextUp: Admin contract address is null"
         );
@@ -211,64 +211,91 @@ describe("NextUp", function () {
 
   });
 
-  describe('Check Athlete ERC20 functionalities', function () {
+  describe('Check Athlete ERC20 functionalities (without drops)', function () {
 
     describe('Check Creating an athlete functionality', () => {
       it("Should allow only admin to create an athlete", async function () {
 
-        // const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-        // const athleteContract = await loadFixture(deployAthlete20Contract);
-
         const [signer, otherSigners] = await ethers.getSigners();
+        const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
         let AthleteERC20Details = {
           price: 2,
-          contractAddress: signer.address,
+          contractAddress: AthleteERC20Contract.address,
           isDisabled: false,
           maxSupply: 10,
           suppliedAmount: 0,
           availableForSale: 0,
           countMaxSupplyAsAvailableTokens: false,
         }
-        // const owner = await adminContract._nxtPrice();
+
         const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
-        // const [signer, otherSigners] = await ethers.getSigners();
         const owner = await adminContract.owner();
-        
-        console.log(owner, signer.address)
+
         // {timestamp:123,supply:10, price:2}
         const drops = [];
-        // console.log("asdadasas");
-        
-        const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops)
-        const result = await tx.wait();
-        
-        if (result){
-          console.log(result.events[0].args);
-        }
-        // for (const event of result.events) {
-        //   console.log(`Event ${event.event} with args ${event.args}`);
+
+        await expect(adminContract.createAthleteToken(AthleteERC20Details, drops))
+          .to.emit(adminContract, 'AthleteTokenCreated')
+          .withArgs(AthleteERC20Contract.address, 1);
+
+        // const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops)
+        // const result = await tx.wait();
+
+        // if (result){
+        //   console.log(result.events[0].args);
         // }
-
-        // for (const event of result.events) {
-        //   console.log(`Event ${event.event} with args ${event.args}`);
-        // }
-
-        // await expect(adminContract.createAthleteReward(signer.address, 0, '123',10)).to.be.revertedWith(
-        //   "Admin: Athlete account not found"
-        // );
-
-        // await expect(tx)
-        // .to.emit(adminContract, 'AthleteTokenCreated')
-        // .withArgs(signer.address, 1);
-        
-        // const result = await expect(adminContract.createAthleteToken(AthleteERC20Details, drops))
-        // .to.emit(adminContract, 'AthleteTokenCreated')
-        // .withArgs(signer.address, 1);
-        // await result.wait();
-        // console.log(result);
 
       })
+
+      it("Should allow only any user except admin to create an athlete", async function () {
+        const [signer, otherSigners] = await ethers.getSigners();
+        const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
+        let AthleteERC20Details = {
+          price: 2,
+          contractAddress: AthleteERC20Contract.address,
+          isDisabled: false,
+          maxSupply: 10,
+          suppliedAmount: 0,
+          availableForSale: 0,
+          countMaxSupplyAsAvailableTokens: false,
+        }
+
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        // {timestamp:123,supply:10, price:2}
+        const drops = [];
+
+
+        await expect(adminContract.connect(otherSigners).createAthleteToken(AthleteERC20Details, drops)).to.be.revertedWith("Ownable: caller is not the owner");
+        
+      })
+
+      it("Should not allow only admin to create an athlete with invalid athlete details", async function () {
+        const [signer, otherSigners] = await ethers.getSigners();
+        const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
+        
+        let AthleteERC20Details = {
+          price: 0,
+          contractAddress: AthleteERC20Contract.address,
+          isDisabled: true,
+          maxSupply: 10,
+          suppliedAmount: 0,
+          availableForSale: 0,
+          countMaxSupplyAsAvailableTokens: false,
+        }
+
+        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+
+        // {timestamp:123,supply:10, price:2}
+        const drops = [];
+        const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops);
+        const res =tx
+        console.log(AthleteERC20Details.price);
+        await expect(adminContract.createAthleteToken(AthleteERC20Details, drops)).to.be.revertedWith("Admin: Invalid athlete details");
+      })
+
+
     });
   });
 
