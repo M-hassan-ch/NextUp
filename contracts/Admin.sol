@@ -114,6 +114,7 @@ contract Admin is Ownable, Pausable {
 
     //  In case, if customer is buying NextUp tokens in WEI
     function buyNxtTokenInWei(uint256 amountToBuy) public payable {
+        require(amountToBuy>0, "Admin: amount should not be zero");
         require(msg.sender != address(0), "Admin: Caller is null address");
         require(
             _nxtSuppliedAmount < _nxtMaxSupply,
