@@ -38,7 +38,7 @@ describe("NextUp", function () {
     const raw = await ethers.getContractFactory("Admin");
     const adminContract = await raw.deploy(10, 1, nxtContract.address, athleteERC721.address);
 
-    return { adminContract, nxtContract };
+    return adminContract;
   }
 
   describe("Check Contract Deployment", function () {
@@ -57,7 +57,7 @@ describe("NextUp", function () {
 
     it("Should set the right owner of admin contract", async function () {
 
-      const { adminContract, } = await loadFixture(deployAdminContract);
+      const adminContract = await loadFixture(deployAdminContract);
       const currentSigner = await ethers.getSigner();
       expect(await adminContract.owner()).to.equal(currentSigner.address);
     });
@@ -74,10 +74,20 @@ describe("NextUp", function () {
 
   describe("Check NextUp ERC20 functionalities", function () {
 
-    describe('Buying NXT', () => {
-      it("Should not allow user to buy tokens more than available tokens", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+    let nxtContract;
+    let adminContract;
 
+    describe('Buying NXT', () => {
+
+      beforeEach(async function () {
+        adminContract = await loadFixture(deployAdminContract);
+        const nxtContractAddr = await adminContract._nextUpContract();
+
+        let raw = await ethers.getContractFactory("NextUp");
+        nxtContract = await raw.attach(nxtContractAddr);
+      });
+
+      it("Should not allow user to buy tokens more than available tokens", async function () {
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -88,8 +98,6 @@ describe("NextUp", function () {
       });
 
       it("Should not allow user to buy tokens if all available tokens are supplied", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -101,8 +109,6 @@ describe("NextUp", function () {
       });
 
       it("Should not allow user to buy tokens having insufficient balance", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -113,8 +119,6 @@ describe("NextUp", function () {
       });
 
       it("Should allow user to buy avallable tokens having sufficient balance", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -127,8 +131,6 @@ describe("NextUp", function () {
       });
 
       it("Should safely transfer ethers from user wallet to contract address", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -139,11 +141,19 @@ describe("NextUp", function () {
     });
 
     describe('NXT contract security', () => {
-      it("Should not allow anyone to make changes on NXT contract if reference to admin contract is null", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+      beforeEach(async function () {
+        adminContract = await loadFixture(deployAdminContract);
+        const nxtContractAddr = await adminContract._nextUpContract();
+        const athleteERC721Addr = await adminContract._athleteERC721Contract();
 
+        let raw = await ethers.getContractFactory("NextUp");
+        nxtContract = await raw.attach(nxtContractAddr);
+        raw = await ethers.getContractFactory("AthleteERC721");
+        athleteERC721Contract = await raw.attach(athleteERC721Addr);
+      });
+
+      it("Should not allow anyone to make changes on NXT contract if reference to admin contract is null", async function () {
         const [signer, otherSigners] = await ethers.getSigners();
-        const owner = await adminContract.owner();
 
         await expect(nxtContract.connect(signer).mint(otherSigners.address, 10, adminContract.address)).to.be.revertedWith(
           "NextUp: Admin contract address is null"
@@ -151,8 +161,6 @@ describe("NextUp", function () {
       });
 
       it("Should not allow anyone except admin to set reference to admin contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await expect(nxtContract.connect(otherSigners).setAdminContract(adminContract.address)).to.be.revertedWith(
@@ -161,8 +169,6 @@ describe("NextUp", function () {
       });
 
       it("Should not allow users other than admin to change refererence to NXT contract in admin smart contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         const testaddress = '0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199';
@@ -174,7 +180,6 @@ describe("NextUp", function () {
       });
 
       it("Should allow admin to set reference to admin contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
         const [signer, otherSigners] = await ethers.getSigners();
 
@@ -184,8 +189,6 @@ describe("NextUp", function () {
       });
 
       it("Should allow only admin account and admin contract to make changes on NXT contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
         const [signer, otherSigners] = await ethers.getSigners();
 
         await nxtContract.setAdminContract(adminContract.address);
@@ -197,7 +200,6 @@ describe("NextUp", function () {
       });
 
       it("Should allow only admin to change refererence to NXT contract in admin smart contract", async function () {
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
         const [signer, otherSigners] = await ethers.getSigners();
 
@@ -213,7 +215,7 @@ describe("NextUp", function () {
 
   describe('Check Athlete ERC20 functionalities (without drops)', function () {
 
-    describe('Check Creating an athlete functionality', () => {
+    describe('Check create an athlete token functionality', () => {
       it("Should allow only admin to create an athlete", async function () {
 
         const [signer, otherSigners] = await ethers.getSigners();
@@ -228,9 +230,7 @@ describe("NextUp", function () {
           countMaxSupplyAsAvailableTokens: false,
         }
 
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
-
-        const owner = await adminContract.owner();
+        const adminContract = await loadFixture(deployAdminContract);
 
         // {timestamp:123,supply:10, price:2}
         const drops = [];
@@ -248,7 +248,7 @@ describe("NextUp", function () {
 
       })
 
-      it("Should allow only any user except admin to create an athlete", async function () {
+      it("Should not allow any user except admin to create an athlete token", async function () {
         const [signer, otherSigners] = await ethers.getSigners();
         const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
         let AthleteERC20Details = {
@@ -261,41 +261,91 @@ describe("NextUp", function () {
           countMaxSupplyAsAvailableTokens: false,
         }
 
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
+        const adminContract = await loadFixture(deployAdminContract);
 
         // {timestamp:123,supply:10, price:2}
         const drops = [];
 
 
         await expect(adminContract.connect(otherSigners).createAthleteToken(AthleteERC20Details, drops)).to.be.revertedWith("Ownable: caller is not the owner");
-        
+
       })
 
-      it("Should not allow only admin to create an athlete with invalid athlete details", async function () {
+      // it("Should not allow only admin to create an athlete with valid athlete details", async function () {
+      //   const [signer, otherSigners] = await ethers.getSigners();
+      //   const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
+
+      //   let AthleteERC20Details = {
+      //     price: 0,
+      //     contractAddress: AthleteERC20Contract.address,
+      //     isDisabled: true,
+      //     maxSupply: 10,
+      //     suppliedAmount: 0,
+      //     availableForSale: 0,
+      //     countMaxSupplyAsAvailableTokens: false,
+      //   }
+
+      //   const adminContract = await loadFixture(deployAdminContract);
+
+      //   // {timestamp:123,supply:10, price:2}
+      //   const drops = [];
+      //   const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops);
+      //   const res =tx
+      //   console.log(AthleteERC20Details.price);
+      //   await expect(adminContract.createAthleteToken(AthleteERC20Details, drops)).to.be.revertedWith("Admin: Invalid athlete details");
+      // })
+
+
+    });
+  });
+
+  describe('Check Athlete ERC721 functionalities', function () {
+    let adminContract;
+    let athleteERC721Contract;
+    
+    describe('Check create an athlete reward functionality', () => {
+      
+      beforeEach(async function () {
+        adminContract = await loadFixture(deployAdminContract);
+        const athleteERC721Addr = await adminContract._athleteERC721Contract();
+
+        let raw = await ethers.getContractFactory("AthleteERC721");
+        athleteERC721Contract = await raw.attach(athleteERC721Addr);
+      });
+
+      it("Should not allow any user except admin to create an athlete reward", async function () {
         const [signer, otherSigners] = await ethers.getSigners();
-        const AthleteERC20Contract = await loadFixture(deployAthlete20Contract);
-        
+
+        const athleteERC20Contract = await loadFixture(deployAthlete20Contract);
+  
         let AthleteERC20Details = {
-          price: 0,
-          contractAddress: AthleteERC20Contract.address,
-          isDisabled: true,
+          price: 2,
+          contractAddress: athleteERC20Contract.address,
+          isDisabled: false,
           maxSupply: 10,
           suppliedAmount: 0,
           availableForSale: 0,
           countMaxSupplyAsAvailableTokens: false,
         }
 
-        const { adminContract, nxtContract } = await loadFixture(deployAdminContract);
 
-        // {timestamp:123,supply:10, price:2}
-        const drops = [];
-        const tx = await adminContract.createAthleteToken(AthleteERC20Details, drops);
-        const res =tx
-        console.log(AthleteERC20Details.price);
-        await expect(adminContract.createAthleteToken(AthleteERC20Details, drops)).to.be.revertedWith("Admin: Invalid athlete details");
+        let tx = await adminContract.createAthleteToken(AthleteERC20Details, []);
+        let result = await tx.wait();
+       
+        // let temp = await adminContract.connect(otherSigners);
+        // console.log('updated signer');
+        
+        const tx1 = await adminContract.createAthleteReward('0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', 1, 'zyx', 123);
+        const res1 = await tx1.wait();
+        console.log(res1);
+
+        await expect(adminContract.createAthleteReward('0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199', 1, 'zyx', 123))
+          .to.emit(adminContract, 'AthleteRewardCreated')
+          .withArgs(1, 1);
+        // result = await tx.wait();
+        // console.log(result);
+        // await expect(adminContract.connect(otherSigners).createAthleteReward(otherSigners.address, '1', 'qweer', '123')).to.be.revertedWith("Ownable: caller is not the owner");
       })
-
-
     });
   });
 

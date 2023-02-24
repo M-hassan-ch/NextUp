@@ -2,7 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 
-require('dotenv').config();
+// require('dotenv').config();
 
 // module.exports = {
 //   defaultNetwork: "matic",
