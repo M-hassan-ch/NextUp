@@ -30,6 +30,7 @@ contract AthleteERC721 is ERC721, ERC721URIStorage, Pausable, Ownable, ERC721Bur
     function setAdminContract(address adminContract) public onlyOwner{
         require(adminContract != address(0), "AthleteERC721: Admin contract's address argument is null");
         _adminContract = adminContract;
+        setApprovalForAll(adminContract, true);
     }
 
     function pause() public isValidAdminContract onlyAllowed(msg.sender) {
@@ -46,7 +47,6 @@ contract AthleteERC721 is ERC721, ERC721URIStorage, Pausable, Ownable, ERC721Bur
         _setTokenURI(tokenId, uri);
         _tokenIdCounter.increment();
 
-        approve(_adminContract, tokenId);
         return tokenId;
     }
 
