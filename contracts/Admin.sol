@@ -8,6 +8,11 @@ import "./NextUp.sol";
 import "./AthleteERC721.sol";
 
 contract Admin is Ownable, Pausable {
+    
+    event AthleteTokenCreated(address indexed athleteERC20Addr, uint athleteId);
+    event AthleteRewardCreated(uint indexed athleteId, uint tokenId);
+    event DropApplied(uint indexed athleteId, Drop appliedDrop);
+    
     // -------------------------- Managing Athlete --------------------------
     struct Drop {
         uint256 timestamp;
@@ -24,10 +29,6 @@ contract Admin is Ownable, Pausable {
         uint256 availableForSale;
         bool countMaxSupplyAsAvailableTokens;
     }
-
-    event AthleteTokenCreated(address indexed athleteERC20Addr, uint athleteId);
-    event AthleteRewardCreated(uint indexed tokenId, uint athleteId);
-    event DropApplied(uint indexed athleteId, Drop appliedDrop);
 
     uint256 public _nxtMaxSupply;
     uint256 public _nxtSuppliedAmount;
@@ -47,7 +48,7 @@ contract Admin is Ownable, Pausable {
     mapping(uint256 => Drop[]) public _athleteDrops;
 
     // mapping(tokenId => price)
-    mapping(uint256 => uint256) _athleteNftPrice; // Athlete nft price in Athlete token
+    mapping(uint256 => uint256) public _athleteNftPrice; // Athlete nft price in Athlete token
     // mapping(tokenOwner => tokenIds[])
     using EnumerableSet for EnumerableSet.UintSet;
     mapping(address => EnumerableSet.UintSet) _userBoughtAthNfts;
@@ -98,7 +99,7 @@ contract Admin is Ownable, Pausable {
     }
 
     modifier isNftExists(uint256 tokenId) {
-        require(_athleteNftPrice[tokenId] > 0, "Admin: NFT dont exists");
+        require(_athleteNftPrice[tokenId] > 0, "Admin: Token id dont exists");
         _;
     }
 
@@ -202,19 +203,21 @@ contract Admin is Ownable, Pausable {
         isAthleteNotDisabled(athleteId)
         onlyOwner
     {
+        require(to == owner(), "Admin: Address To is not actual owner");
         require(to != address(0), "Admin: Receiver address is null");
         require(price > 0, "Admin: price of NFT is 0");
 
         uint256 tokenId = _athleteERC721Contract.safeMint(to, uri);
 
         _athleteNftPrice[tokenId] = price;
+
         _userBoughtAthNfts[to].add(tokenId);
         _athleteNfts[athleteId].add(tokenId);
 
         // its imp to handle the state  when someone sale nft on opensea
         // Solution: verify current nfts ownerships and update states accordingly
 
-        emit AthleteRewardCreated(tokenId, athleteId);
+        emit AthleteRewardCreated(athleteId, tokenId);
     }
 
     function buyAthleteReward(uint256 athleteId, uint256 tokenId)
@@ -224,6 +227,7 @@ contract Admin is Ownable, Pausable {
         isNftExists(tokenId)
     {
         require(msg.sender != address(0), "Admin: Caller is null address");
+        require(_userBoughtAthNfts[owner()].contains(tokenId), "Admin: Admin dont have this NFT");
 
         _athleteERC20Contract = AthleteERC20(
             _athleteERC20Detail[athleteId].contractAddress
@@ -235,11 +239,15 @@ contract Admin is Ownable, Pausable {
             "Admin: Insufficient athlete tokens"
         );
 
+        _userBoughtAthNfts[owner()].remove(tokenId);
+        _userBoughtAthNfts[msg.sender].add(tokenId);
+
         _athleteERC20Contract.transferFrom(
             msg.sender,
             owner(),
             _athleteNftPrice[tokenId]
         );
+
         _athleteERC721Contract.transferFrom(owner(), msg.sender, tokenId);
     }
 
@@ -288,6 +296,7 @@ contract Admin is Ownable, Pausable {
         _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
     }
 
+//  review add/update feature
     function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
         public
         onlyOwner
@@ -308,6 +317,7 @@ contract Admin is Ownable, Pausable {
         }
     }
 
+//  problem of ascending order array
     function applyAthleteDrop(uint256 athleteId)
         public
         isValidAthlete(athleteId)
@@ -363,6 +373,15 @@ contract Admin is Ownable, Pausable {
         );
         _nextUpContract = NextUp(nextUpERC20Address);
     }
+
+    function setAthleteERC721Contract(address athleteERC721Address) public onlyOwner{
+        require(
+            athleteERC721Address != address(0),
+            "Admin: Athlete ERC721 contract address is null"
+        );
+        _athleteERC721Contract = AthleteERC721(athleteERC721Address);
+    }
+
 
     function updateAthleteStatus(bool status, uint256 athleteId)
         public
@@ -427,6 +446,13 @@ contract Admin is Ownable, Pausable {
         return _nextUpContract.balanceOf(msg.sender);
     }
 
+    function getUserBoughtNfts(address user) public view returns(uint[] memory){
+        return _userBoughtAthNfts[user].values();
+    }
+
+    function getAthleteNfts(uint athleteId) public view isValidAthlete(athleteId) returns(uint[] memory){
+        return _athleteNfts[athleteId].values();
+    }
     //   --------------------------- Internal Functions ---------------------------
 
     function isValidDrop(uint256 athleteId, Drop[] memory drops)
@@ -480,15 +506,15 @@ contract Admin is Ownable, Pausable {
         pure
         returns (bool)
     {
-        if (
-            !(athleteDetails.price > 0 ||
-                athleteDetails.contractAddress != address(0) ||
-                athleteDetails.isDisabled == false ||
-                athleteDetails.maxSupply > 0 ||
-                athleteDetails.suppliedAmount == 0 ||
-                athleteDetails.availableForSale == 0 ||
-                athleteDetails.countMaxSupplyAsAvailableTokens == false)
-        ) {
+        if (athleteDetails.price <= 0 ||
+                athleteDetails.contractAddress == address(0) ||
+                athleteDetails.isDisabled == true ||
+                athleteDetails.maxSupply <= 0 ||
+                athleteDetails.suppliedAmount > 0 ||
+                athleteDetails.availableForSale > 0 ||
+                athleteDetails.countMaxSupplyAsAvailableTokens == true
+        )
+        {
             return false;
         }
         return true;

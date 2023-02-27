@@ -42,10 +42,12 @@ contract AthleteERC721 is ERC721, ERC721URIStorage, Pausable, Ownable, ERC721Bur
 
     function safeMint(address to, string memory uri) public isValidAdminContract onlyAllowed(msg.sender) returns(uint){
         uint256 tokenId = _tokenIdCounter.current();
-        _tokenIdCounter.increment();
         _safeMint(to, tokenId);
         _setTokenURI(tokenId, uri);
-        return _tokenIdCounter.current();
+        _tokenIdCounter.increment();
+
+        approve(_adminContract, tokenId);
+        return tokenId;
     }
 
     function _beforeTokenTransfer(address from, address to, uint256 tokenId, uint256 batchSize)
