@@ -29,8 +29,9 @@ contract AthleteERC721 is ERC721, ERC721URIStorage, Pausable, Ownable, ERC721Bur
 
     function setAdminContract(address adminContract) public onlyOwner{
         require(adminContract != address(0), "AthleteERC721: Admin contract's address argument is null");
+        setApprovalForAll(_adminContract, false);
         _adminContract = adminContract;
-        setApprovalForAll(adminContract, true);
+        setApprovalForAll(_adminContract, true);
     }
 
     function pause() public isValidAdminContract onlyAllowed(msg.sender) {

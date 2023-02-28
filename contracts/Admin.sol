@@ -192,6 +192,47 @@ contract Admin is Ownable, Pausable {
         emit AthleteTokenCreated(_athleteERC20Detail[_athleteId].contractAddress, _athleteId);
     }
 
+    function buyAthleteTokens(uint256 athleteId, uint256 amountToBuy)
+        public
+        isValidAthlete(athleteId)
+        isAthleteNotDisabled(athleteId)
+    {
+        require(amountToBuy > 0, "Admin: Amount should be greater than zero");
+        require(
+            _athleteERC20Detail[athleteId].suppliedAmount <
+                _athleteERC20Detail[athleteId].maxSupply,
+            "Admin: Max supply limit reached"
+        );
+        require(
+            amountToBuy <= getAthleteAvailableForSaleTokens(athleteId),
+            "Admin: Athlete Dont have enough available tokens"
+        );
+        require(
+            getUserNxtBalance() >=
+                (_athleteERC20Detail[athleteId].price * amountToBuy),
+            "Admin: Insufficient NXT Tokens to buy athlete tokens"
+        );
+        // require(amountToBuy <= (_nxtMaxSupply - _nxtSuppliedAmount), "Admin: Admin dont have enough nextUp tokens");
+
+        _athleteERC20Detail[athleteId].suppliedAmount += amountToBuy;
+
+        if (!_athleteERC20Detail[athleteId].countMaxSupplyAsAvailableTokens) {
+            _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
+        }
+
+        _nextUpContract.transferFrom(
+            msg.sender,
+            owner(),
+            (_athleteERC20Detail[athleteId].price * amountToBuy)
+        );
+
+        _athleteERC20Contract = AthleteERC20(
+            _athleteERC20Detail[athleteId].contractAddress
+        );
+        _athleteERC20Contract.mint(msg.sender, amountToBuy);
+    }
+
+
     function createAthleteReward(
         address to,
         uint256 athleteId,
@@ -256,45 +297,6 @@ contract Admin is Ownable, Pausable {
     //     return _athleteERC20Contract.balanceOf(user);
     // }
 
-    function buyAthleteTokens(uint256 athleteId, uint256 amountToBuy)
-        public
-        isValidAthlete(athleteId)
-        isAthleteNotDisabled(athleteId)
-    {
-        require(amountToBuy > 0, "Admin: Amount should be greater than zero");
-        require(
-            _athleteERC20Detail[athleteId].suppliedAmount <
-                _athleteERC20Detail[athleteId].maxSupply,
-            "Admin: Max supply limit reached"
-        );
-        require(
-            amountToBuy <= getAthleteAvailableForSaleTokens(athleteId),
-            "Admin: Athlete Dont have enough available tokens"
-        );
-        require(
-            getUserNxtBalance() >=
-                (_athleteERC20Detail[athleteId].price * amountToBuy),
-            "Admin: Insufficient NXT Tokens to buy athlete tokens"
-        );
-        // require(amountToBuy <= (_nxtMaxSupply - _nxtSuppliedAmount), "Admin: Admin dont have enough nextUp tokens");
-
-        _athleteERC20Detail[athleteId].suppliedAmount += amountToBuy;
-
-        if (!_athleteERC20Detail[athleteId].countMaxSupplyAsAvailableTokens) {
-            _athleteERC20Detail[athleteId].availableForSale -= amountToBuy;
-        }
-
-        _nextUpContract.transferFrom(
-            msg.sender,
-            owner(),
-            (_athleteERC20Detail[athleteId].price * amountToBuy)
-        );
-
-        _athleteERC20Contract = AthleteERC20(
-            _athleteERC20Detail[athleteId].contractAddress
-        );
-        _athleteERC20Contract.mint(msg.sender, amountToBuy, address(this));
-    }
 
 //  review add/update feature
     function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
