@@ -8,7 +8,9 @@ import "./NextUp.sol";
 import "./AthleteERC721.sol";
 
 contract Admin is Ownable, Pausable {
-    
+
+    event AthleteTokenPkgDeleted(uint indexed athleteTokenPkgId, address seller, uint quantity, uint price, uint athleteId);
+    event AthleteTokenPkgCreated(uint indexed athleteTokenPkgId);
     event AthleteTokenCreated(address indexed athleteERC20Addr, uint athleteId);
     event AthleteRewardCreated(uint indexed athleteId, uint tokenId);
     event DropApplied(uint indexed athleteId, Drop appliedDrop);
@@ -30,6 +32,13 @@ contract Admin is Ownable, Pausable {
         bool countMaxSupplyAsAvailableTokens;
     }
 
+    struct AthleteTokenPkg{
+        address seller;
+        uint quantity;
+        uint price;
+        uint athleteId;
+    }
+
     uint256 public _nxtMaxSupply;
     uint256 public _nxtSuppliedAmount;
     // uint public _pricePerNxtTokenInFiat;
@@ -47,6 +56,8 @@ contract Admin is Ownable, Pausable {
     //  mapping(Athelete => Athlete token drops)
     mapping(uint256 => Drop[]) public _athleteDrops;
 
+    // -------------------------- NFT -------------------------- 
+
     // mapping(tokenId => price)
     mapping(uint256 => uint256) public _athleteNftPrice; // Athlete nft price in Athlete token
     // mapping(tokenOwner => tokenIds[])
@@ -54,6 +65,13 @@ contract Admin is Ownable, Pausable {
     mapping(address => EnumerableSet.UintSet) _userBoughtAthNfts;
     // mapping(athleteId => athleteNfts[])
     mapping(uint256 => EnumerableSet.UintSet) _athleteNfts;
+    
+    // -------------------------- Athlete Token Package --------------------------
+
+    uint _athleteTokenPkgId;
+    mapping(uint => AthleteTokenPkg) _athleteTokenPkg;
+    mapping(address => EnumerableSet.UintSet) _sellersCreatedAthleteTokenpkg;
+    EnumerableSet.UintSet _validAthleteTokenpkgIds;
 
     constructor(
         uint256 maxSupply,
@@ -109,6 +127,41 @@ contract Admin is Ownable, Pausable {
             "Admin: Athlete account is disabled"
         );
         _;
+    }
+
+    function createAthleteTokenPkg(AthleteTokenPkg memory athleteTokenPkg) public isValidAthlete(athleteTokenPkg.athleteId) isAthleteNotDisabled(athleteTokenPkg.athleteId){
+        require(athleteTokenPkg.seller != address(0), "Admin: seller is null address");
+        require(athleteTokenPkg.quantity>0, "Admin: quaatity is 0");
+        require(athleteTokenPkg.price>0, "Admin: price is 0");
+        require(athleteTokenPkg.seller == msg.sender, "Admin: Seller and caller is not same");
+        require(isEligibleForPkgCreation(athleteTokenPkg.seller, athleteTokenPkg.athleteId, athleteTokenPkg.quantity), "Admin: Insufficient athlete token for package creation");
+        
+        _athleteTokenPkgId++;
+        _athleteTokenPkg[_athleteTokenPkgId] = athleteTokenPkg;
+        _sellersCreatedAthleteTokenpkg[athleteTokenPkg.seller].add(_athleteTokenPkgId);
+        _validAthleteTokenpkgIds.add(_athleteTokenPkgId);
+
+        emit AthleteTokenPkgCreated(_athleteTokenPkgId);
+    }
+
+    function buyAthleteTokenPkg(uint packageId) public isAthleteNotDisabled(_athleteTokenPkg[packageId].athleteId){
+        
+        AthleteTokenPkg memory package = _athleteTokenPkg[packageId];
+
+        require(package.seller != address(0), "Admin: Invalid package id");
+        require(_nextUpContract.balanceOf(msg.sender) >= package.quantity * package.price, "Admin: Insufficient NXT token for buying package");
+
+        _sellersCreatedAthleteTokenpkg[package.seller].remove(packageId);
+        _validAthleteTokenpkgIds.remove(packageId);
+        delete _athleteTokenPkg[packageId];
+
+        _athleteERC20Contract = AthleteERC20(
+            _athleteERC20Detail[package.athleteId].contractAddress
+        );
+
+        _athleteERC20Contract.transferTokens(package.seller, msg.sender,  package.quantity);
+
+        emit AthleteTokenPkgDeleted(packageId, package.seller, package.quantity, package.price, package.athleteId);
     }
 
     // -------------------------- User related functions --------------------------
@@ -457,6 +510,32 @@ contract Admin is Ownable, Pausable {
     }
     //   --------------------------- Internal Functions ---------------------------
 
+     function isEligibleForPkgCreation(address seller, uint athleteId, uint qtyToSell) internal returns(bool){
+        _athleteERC20Contract = AthleteERC20(
+            _athleteERC20Detail[athleteId].contractAddress
+        );
+
+        if (_athleteERC20Contract.balanceOf(seller) >= getLockedAthleteTokens(seller, athleteId) + qtyToSell){
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
+
+    function getLockedAthleteTokens(address seller, uint athleteId) internal view returns(uint){
+        uint lockedTokens;
+
+        uint256[] memory packageIds = _sellersCreatedAthleteTokenpkg[seller].values();
+
+        for (uint i=0;i<packageIds.length;i++){
+            if (_athleteTokenPkg[packageIds[i]].athleteId == athleteId){
+                lockedTokens += _athleteTokenPkg[packageIds[i]].quantity;
+            }
+        }
+        return lockedTokens;
+    }
+    
     function isValidDrop(uint256 athleteId, Drop[] memory drops)
         internal
         view
