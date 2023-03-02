@@ -349,14 +349,9 @@ contract Admin is Ownable, Pausable {
         _athleteERC721Contract.transferFrom(owner(), msg.sender, tokenId);
     }
 
-    // function getOwnedAthleteTokens(uint athleteId, address user) internal returns(uint){
-    //     _athleteERC20Contract = AthleteERC20(_athleteERC20Detail[athleteId].contractAddress);
-    //     return _athleteERC20Contract.balanceOf(user);
-    // }
-
 
 //  review add/update feature
-    function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
+    function updateAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
         public
         onlyOwner
         isValidAthlete(athleteId)
