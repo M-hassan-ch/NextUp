@@ -68,10 +68,11 @@ contract Admin is Ownable, Pausable {
     
     // -------------------------- Athlete Token Package --------------------------
 
-    uint _athleteTokenPkgId;
-    mapping(uint => AthleteTokenPkg) _athleteTokenPkg;
+    uint public _athleteTokenPkgId;
+    mapping(uint => AthleteTokenPkg) public _athleteTokenPkg;
     mapping(address => EnumerableSet.UintSet) _sellersCreatedAthleteTokenpkg;
     EnumerableSet.UintSet _validAthleteTokenpkgIds;
+
 
     constructor(
         uint256 maxSupply,
@@ -148,6 +149,7 @@ contract Admin is Ownable, Pausable {
         
         AthleteTokenPkg memory package = _athleteTokenPkg[packageId];
 
+        require(package.seller != msg.sender, "Admin: Can't buy own package");
         require(package.seller != address(0), "Admin: Invalid package id");
         require(_nextUpContract.balanceOf(msg.sender) >= package.quantity * package.price, "Admin: Insufficient NXT token for buying package");
 
@@ -160,6 +162,7 @@ contract Admin is Ownable, Pausable {
         );
 
         _athleteERC20Contract.transferTokens(package.seller, msg.sender,  package.quantity);
+        _nextUpContract.transferTokens(msg.sender, package.seller, package.quantity * package.price);
 
         emit AthleteTokenPkgDeleted(packageId, package.seller, package.quantity, package.price, package.athleteId);
     }
@@ -184,7 +187,7 @@ contract Admin is Ownable, Pausable {
         );
 
         _nxtSuppliedAmount += amountToBuy;
-        _nextUpContract.mint(msg.sender, amountToBuy, address(this));
+        _nextUpContract.mint(msg.sender, amountToBuy);
         // approve(address(this), amountToBuy);
     }
 
@@ -204,7 +207,7 @@ contract Admin is Ownable, Pausable {
         );
 
         _nxtSuppliedAmount += amount;
-        _nextUpContract.mint(receiver, amount, address(this));
+        _nextUpContract.mint(receiver, amount);
         // approve(address(this), amountToBuy);
     }
 
@@ -322,6 +325,7 @@ contract Admin is Ownable, Pausable {
     {
         require(msg.sender != address(0), "Admin: Caller is null address");
         require(_userBoughtAthNfts[owner()].contains(tokenId), "Admin: Admin dont have this NFT");
+        require(isEligibleForPkgCreation(msg.sender, athleteId, _athleteNftPrice[tokenId]), "Admin: Insufficient athlete tokens (release locked)");
 
         _athleteERC20Contract = AthleteERC20(
             _athleteERC20Detail[athleteId].contractAddress
@@ -508,6 +512,15 @@ contract Admin is Ownable, Pausable {
     function getAthleteNfts(uint athleteId) public view isValidAthlete(athleteId) returns(uint[] memory){
         return _athleteNfts[athleteId].values();
     }
+
+    function getSellerCreatedAthleteTokenpkg(address seller) public view returns(uint[] memory){
+        return _sellersCreatedAthleteTokenpkg[seller].values();
+    }
+
+    function getValidAthleteTokenpkgIds()public view returns(uint[] memory){
+        return _validAthleteTokenpkgIds.values();
+    }
+
     //   --------------------------- Internal Functions ---------------------------
 
      function isEligibleForPkgCreation(address seller, uint athleteId, uint qtyToSell) internal returns(bool){

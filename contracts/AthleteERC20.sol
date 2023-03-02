@@ -44,7 +44,6 @@ contract AthleteERC20 is ERC20, ERC20Burnable, Pausable, Ownable{
 
     function transferTokens(address from, address to,  uint amount) public isValidAdminContract onlyAllowed(msg.sender){
         transferFrom(from, to, amount);
-        _spendAllowance(from, _adminContract, amount);
         updateAllowance(to, amount, _adminContract);
     }
 
