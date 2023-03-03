@@ -350,8 +350,26 @@ contract Admin is Ownable, Pausable {
     }
 
 
-//  review add/update feature
+    //  review add/update feature
     function updateAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
+        public
+        onlyOwner
+        isValidAthlete(athleteId)
+    {
+        require(_athleteDrops[athleteId].length > 0, "Admin: Athlete dont have drops");
+        require(_athleteDrops[athleteId].length == tokenDrops.length, "Admin: Different lengths of new and exisiting drops");
+        require(
+            isValidDrop(athleteId, tokenDrops),
+            "Admin: Got an invalid token drop"
+        );
+
+        for (uint256 i = 0; i < tokenDrops.length; i++) {
+            _athleteDrops[athleteId][i] = tokenDrops[i];
+        }
+    }
+
+//  review add/update feature
+    function addAthleteDrops(uint256 athleteId, Drop[] memory tokenDrops)
         public
         onlyOwner
         isValidAthlete(athleteId)
