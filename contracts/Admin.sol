@@ -7,6 +7,7 @@ import "./AthleteERC20.sol";
 import "./NextUp.sol";
 import "./AthleteERC721.sol";
 
+
 contract Admin is Ownable, Pausable {
 
     event AthleteTokenPkgDeleted(uint indexed athleteTokenPkgId, address seller, uint quantity, uint price, uint athleteId);
@@ -92,10 +93,6 @@ contract Admin is Ownable, Pausable {
         require(
             priceInwei > 0,
             "Admin: Price of token should be greater than zero"
-        );
-        require(
-            nextUpERC20Address != address(0),
-            "Admin: Next-Up contract address is null"
         );
 
         _nxtMaxSupply = maxSupply;
