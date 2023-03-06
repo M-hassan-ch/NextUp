@@ -89,10 +89,10 @@ contract Admin is Ownable, Pausable {
             athleteERC721Address != address(0),
             "Admin: AthleteERC721 contract address is null"
         );
-        require(maxSupply > 0, "Admin: Max supply should be greater than zero");
+        require(maxSupply > 0, "Admin: Max supply is 0");
         require(
             priceInwei > 0,
-            "Admin: Price of token should be greater than zero"
+            "Admin: Price is 0"
         );
 
         _nxtMaxSupply = maxSupply;
@@ -265,7 +265,6 @@ contract Admin is Ownable, Pausable {
                 (_athleteERC20Detail[athleteId].price * amountToBuy),
             "Admin: Insufficient NXT Tokens to buy athlete tokens"
         );
-        // require(amountToBuy <= (_nxtMaxSupply - _nxtSuppliedAmount), "Admin: Admin dont have enough nextUp tokens");
 
         _athleteERC20Detail[athleteId].suppliedAmount += amountToBuy;
 
