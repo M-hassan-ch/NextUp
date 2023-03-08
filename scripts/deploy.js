@@ -6,16 +6,25 @@
 // global scope, and execute the script.
 const hre = require("hardhat");
 
-async functio```````n main() {
+async function main() {
 
-  const raw = await hre.ethers.getContractFactory("AthleteERC20");
+  const nxt_raw = await hre.ethers.getContractFactory("NextUp");
+  const nft_raw = await hre.ethers.getContractFactory("AthleteERC721");
+  const admin_raw = await hre.ethers.getContractFactory("Admin");
 
-  const contract = await raw.deploy("asasa", "asa");
+  const nxt_contract = await nxt_raw.deploy("NextUp", "NXT");
+  await nxt_contract.deployed();
 
-  await contract.deployed();
+  const nft_contract = await nft_raw.deploy("NFT", "NFT");
+  await nft_contract.deployed();
+
+  const admin_contract = await admin_raw.deploy("100000000000000", "100000000000000", nxt_contract.address, nft_contract.address);
+  await admin_contract.deployed();
 
   console.log(
-    `${contract.address}}`
+    `Nextup:    ${nxt_contract.address}\n
+    AthleteNFT: ${nft_contract.address}\n
+    Admn:       ${admin_contract.address}`
   );
 }
 
